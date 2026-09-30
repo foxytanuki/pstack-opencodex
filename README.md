@@ -1,4 +1,4 @@
-# pstack-codex
+# pstack-opencodex
 
 [pstack](https://github.com/cursor/plugins/tree/main/pstack)（Cursor公式版）を、opencodex経由のCodexで使うためのビルド用リポジトリです。原版は `upstream/` に無改変で置き、Codex向けの変更は `overlay/` にだけ持ちます。
 
@@ -21,10 +21,10 @@
 ## 原版の更新を取り込む
 
 ```bash
-python3 tools/pstack_codex.py sync          # 最新の原版を取得し、前回からの変更履歴を表示
+python3 tools/pstack_opencodex.py sync          # 最新の原版を取得し、前回からの変更履歴を表示
 git diff --stat upstream                    # 原版の差分を確認
-python3 tools/pstack_codex.py build         # dist/ を再生成
-python3 tools/pstack_codex.py check-models  # モデル設定が今のCodex一覧で解決できるか確認
+python3 tools/pstack_opencodex.py build         # dist/ を再生成
+python3 tools/pstack_opencodex.py check-models  # モデル設定が今のCodex一覧で解決できるか確認
 git add -A && git commit -m "chore: sync pstack upstream to <sha>"
 ```
 
@@ -33,10 +33,10 @@ git add -A && git commit -m "chore: sync pstack upstream to <sha>"
 ## インストールと設定
 
 ```bash
-python3 tools/pstack_codex.py build
-python3 tools/pstack_codex.py install --target <repo>/.agents/skills   # 試行するリポジトリ
+python3 tools/pstack_opencodex.py build
+python3 tools/pstack_opencodex.py install --target <repo>/.agents/skills   # 試行するリポジトリ
 cp overlay/pstack-models.example.md ~/.codex/pstack-models.md          # または $setup-pstack で作成
-python3 tools/pstack_codex.py check-models
+python3 tools/pstack_opencodex.py check-models
 ```
 
 全リポジトリで使う場合は `--target ~/.agents/skills` を指定します。`uninstall --target <dir>` は `dist/` を指すsymlinkだけを削除します。

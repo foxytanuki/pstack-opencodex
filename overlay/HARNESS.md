@@ -34,7 +34,7 @@ Resolve every model value, from the settings file or from a pstack default, in t
 
 Model families go by the name after the provider prefix. `anthropic/claude-*` is the `claude-*` family, `devin/grok-*` is `grok-*`, and `gpt-*` stays `gpt-*`. Any other name is its own family.
 
-For `/setup-pstack`, detect models from `~/.codex/models_cache.json`, write each value as `<catalog slug>-<effort>`, and write `~/.codex/pstack-models.md` without frontmatter. Then run `python3 {{PSTACK_REPO}}/tools/pstack_codex.py check-models` and fix every line it reports.
+For `/setup-pstack`, detect models from `~/.codex/models_cache.json`, write each value as `<catalog slug>-<effort>`, and write `~/.codex/pstack-models.md` without frontmatter. Then run `python3 {{PSTACK_REPO}}/tools/pstack_opencodex.py check-models` and fix every line it reports.
 
 ## Transcripts
 
