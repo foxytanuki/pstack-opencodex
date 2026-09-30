@@ -1,0 +1,3 @@
+# Upstream skills that build leaves out, one name per line.
+# make-bot-ui drives Cursor automations (webhook routines and Grok Bots), which Codex does not have.
+make-bot-ui

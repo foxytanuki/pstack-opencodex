@@ -8,6 +8,7 @@
 | `upstream/` | `cursor/plugins/pstack` の完全なコピー。手で編集しない |
 | `overlay/HARNESS.md` | Cursorのツール名・パス・モデル名をCodex/opencodexへ対応づける説明 |
 | `overlay/patches/` | 文章の書き換えでは足りない修正（現在はLinux対応のみ） |
+| `overlay/exclude` | Codexに相当機能がないため生成しないスキル（現在は `make-bot-ui`） |
 | `overlay/pstack-models.example.md` | Codexのモデル一覧で解決できるモデル設定の例 |
 | `dist/` | `build` の生成物。インストール先からsymlinkで参照する |
 

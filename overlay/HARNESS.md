@@ -8,6 +8,7 @@ pstack was written for Cursor. This file maps its Cursor tools, paths, and model
 - `pstack/skills/...` in pstack text means `{{PSTACK_DIST}}/skills/...`. For `git show origin/main:pstack/skills/<path>`, read `{{PSTACK_DIST}}/skills/<path>`.
 - Subagent definitions: `{{PSTACK_DIST}}/agents/poteto-agent.md` and `{{PSTACK_DIST}}/agents/comment-sicko.md`.
 - Skill folders: `.agents/skills/` in the repository for project skills such as a generated `verify-<app>`, and `~/.agents/skills/` for user skills.
+- Cursor paths in pstack text map as follows. `.cursor/skills/` is `.agents/skills/`. `~/.cursor/skills/` is `~/.agents/skills/`, and Codex also reads `~/.codex/skills/`. `~/.cursor/plugins/` is `~/.codex/plugins/`. Project rules under `.cursor/rules/` are the repository's `AGENTS.md` files. `~/.cursor/projects/<slug>/agent-transcripts/` is covered under Transcripts. For worktrees under `.cursor/worktrees/`, use `git worktree list`, which finds worktrees wherever they live.
 
 ## Subagents
 
@@ -46,6 +47,13 @@ Codex stores sessions at `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`, subagen
 - `/goal` means Codex's `create_goal` when this session has it. Otherwise keep the objective and its exit condition in the plan file.
 - `/loop` means a timed wait between checks: a shell `sleep` of at most 60 seconds per call, repeated. In the Codex desktop app, a thread heartbeat automation can wake the thread for longer intervals.
 
+## Cursor features Codex does not have
+
+- Cursor cloud agents and the Cursor dashboard. Codex subagents run on this machine and stop when Codex exits. Their state lives in `wait_agent` results, their worktrees, pushed branches, and the program's ledger files. Where pstack describes a Cursor restart, apply the same rule to a Codex restart: treat every subagent as gone and resume from those records. Where pstack offers a local root or a cloud root, follow the local root instructions.
+- Cursor's built-in skills, such as its babysit skill. Codex has none of them, so follow the pstack playbook pstack names.
+- Cursor automations, webhook routines, and Grok Bots. The `make-bot-ui` skill depends on them and is not installed.
+- Graphite. Orchestrate's stack tools (`orch frontier`) run `gt`. Before starting Orchestrate, check `command -v gt`. If it is missing, tell the user before any work. The other playbooks use `gh` and never require `gt`.
+
 ## Tools pstack does not ship
 
 - `create-skill`: use Codex's `$skill-creator`.
@@ -53,3 +61,4 @@ Codex stores sessions at `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`, subagen
 - `control-ui`: the repository's own Playwright setup, or the `agent-browser` skill, for web and Electron apps.
 - `control-cli`: a tmux session or a PTY command for CLIs and TUIs.
 - Bugbot and Cursor's agentic security review: apply their triage rules to whatever review bots the repository uses. If none comment, skip those steps.
+- MCP discovery in the **why** skill: Cursor's `mcps/` directory means the MCP tools in your own tool list, named `mcp__<server>__<tool>`. `codex mcp list` shows the configured servers.

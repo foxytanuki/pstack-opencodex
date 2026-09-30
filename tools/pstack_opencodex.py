@@ -108,6 +108,14 @@ def cmd_build(args: argparse.Namespace) -> None:
     shutil.copytree(UPSTREAM_DIR / "skills", dist / "skills")
     shutil.copytree(UPSTREAM_DIR / "agents", dist / "agents")
 
+    excluded = [line.strip() for line in (OVERLAY_DIR / "exclude").read_text().splitlines()
+                if line.strip() and not line.startswith("#")]
+    for name in excluded:
+        if (dist / "skills" / name).exists():
+            shutil.rmtree(dist / "skills" / name)
+        else:
+            print(f"note: excluded skill {name} no longer exists upstream; drop it from overlay/exclude")
+
     for patch in sorted((OVERLAY_DIR / "patches").glob("*.patch")):
         base = ["patch", "-p1", "--batch", "--forward", "--no-backup-if-mismatch", "-d", str(dist), "-i", str(patch)]
         check = subprocess.run(base + ["--dry-run"], text=True, capture_output=True)
@@ -132,6 +140,7 @@ def cmd_build(args: argparse.Namespace) -> None:
         "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "skills": len(skills),
         "explicit_only": explicit,
+        "excluded": excluded,
     }
     (dist / "BUILD-INFO.json").write_text(json.dumps(info, indent=2) + "\n")
     print(f"built {len(skills)} skills into {dist} ({explicit} explicit-only)")
@@ -245,7 +254,11 @@ def cmd_install(args: argparse.Namespace) -> None:
         if link.is_symlink():
             link.unlink()
         link.symlink_to(skill)
-    print(f"linked {len(skills)} skills into {target}")
+    stale = [link for link in target.iterdir()
+             if link.is_symlink() and str(os.readlink(link)).startswith(str(DIST_DIR)) and not link.exists()]
+    for link in stale:
+        link.unlink()
+    print(f"linked {len(skills)} skills into {target}" + (f", removed {len(stale)} stale links" if stale else ""))
 
 
 def cmd_uninstall(args: argparse.Namespace) -> None:
