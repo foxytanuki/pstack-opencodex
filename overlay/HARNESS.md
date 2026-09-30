@@ -52,7 +52,7 @@ Codex stores sessions at `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`, subagen
 - Cursor cloud agents and the Cursor dashboard. Codex subagents run on this machine and stop when Codex exits. Their state lives in `wait_agent` results, their worktrees, pushed branches, and the program's ledger files. Where pstack describes a Cursor restart, apply the same rule to a Codex restart: treat every subagent as gone and resume from those records. Where pstack offers a local root or a cloud root, follow the local root instructions.
 - Cursor's built-in skills, such as its babysit skill. Codex has none of them, so follow the pstack playbook pstack names.
 - Cursor automations, webhook routines, and Grok Bots. The `make-bot-ui` skill depends on them and is not installed.
-- Graphite. Orchestrate's stack tools (`orch frontier`) run `gt`. Before starting Orchestrate, check `command -v gt`. If it is missing, tell the user before any work. The other playbooks use `gh` and never require `gt`.
+- Graphite. Orchestrate's stack tools (`orch frontier`) run `gt` and read PR numbers through Graphite, which needs `gt auth` and `gt init` in the repository. Before starting Orchestrate, check `command -v gt` and check that `~/.config/graphite/user_config` contains an `authToken` key without printing its value, for example with `rg -q authToken ~/.config/graphite/user_config`. If `gt` is missing or not authenticated, tell the user before any work. The other playbooks use `gh` and never require `gt`.
 
 ## Tools pstack does not ship
 
