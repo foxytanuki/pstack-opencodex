@@ -1,6 +1,6 @@
 # pstack on Codex through opencodex
 
-pstack was written for Cursor. This file maps its Cursor tools, paths, and model names to Codex running through opencodex on this machine. It changes names and locations only. Follow every pstack step as written. Explicit user instructions override both pstack and this file.
+pstack was written for Cursor. This file maps its tools, paths, and model names to Codex running through opencodex, and adds delegation compatibility checks. Follow pstack's steps with these runtime constraints. Explicit user instructions override both pstack and this file.
 
 ## Where pstack lives
 
@@ -12,8 +12,9 @@ pstack was written for Cursor. This file maps its Cursor tools, paths, and model
 
 ## Subagents
 
-- `Task` means Codex's `spawn_agent`. Collect results with `wait_agent`, follow up with `send_input`, and finish with `close_agent`.
+- `Task` means Codex's `spawn_agent`. Use the collaboration tools actually exposed by the session. In the desktop surface, `wait_agent` waits for mailbox updates; read the delivered messages and final answers to collect results. `send_message` sends a message without starting an idle agent, `followup_task` assigns more work and starts an idle agent, and `interrupt_agent` stops its current turn while keeping it available. Interruption is not closure. Use `send_input`, `wait`, or `close_agent` only on hosts that expose those tools; do not invent absent tools.
 - Pass the prompt as `message`, and set `model` and `reasoning_effort` as described under Models. Drop `subagent_type`, `run_in_background`, and any other parameter Codex does not have. Codex subagents already run in the background.
+- When this host only accepts model overrides with a partial or empty fork, use `fork_turns: "none"` for independent tasks and include their context explicitly. This controls history inheritance, not V1/V2 transport or encryption.
 - `readonly: true` means the prompt must say the agent may read files and run commands but must not edit files, commit, or push.
 - `environment: "cloud"` means a local subagent that works in its own git worktree and output directory.
 - `subagent_type: "poteto-agent"` means a subagent whose message starts with "Read {{PSTACK_DIST}}/skills/poteto-mode/SKILL.md in full, including its Principles section, before any work." Then give the task.
@@ -29,13 +30,35 @@ Resolve every model value, from the settings file or from a pstack default, in t
 
 1. `inherit-parent` or `auto`: omit both `model` and `reasoning_effort`.
 2. Split off the effort. The effort token is the last hyphen-separated token, or the one before a trailing `fast`: `low`, `medium`, `high`, `xhigh`, `max`, or `ultra`. Drop `fast`. `anthropic/claude-opus-5-5-max` becomes model `anthropic/claude-opus-5-5` with effort `max`. With no effort token, omit `reasoning_effort`.
-3. Match the model against the Codex catalog, the `slug` values in `~/.codex/models_cache.json`. Use an exact match first. Otherwise use the slug whose part after the last `/` matches the name, treating `.` and `-` as equal and preferring `anthropic/`. So `claude-opus-5-5` resolves to `anthropic/claude-opus-5-5`.
+3. Match the model against the catalog selected by `check-runtime` from the client's config and profile. It uses `~/.codex/models_cache.json` only when no `model_catalog_json` is configured. Pass the same path to `check-models --catalog` when an override is active. Use an exact match first. Otherwise use the slug whose part after the last `/` matches the name, treating `.` and `-` as equal and preferring `anthropic/`. So `claude-opus-5-5` resolves to `anthropic/claude-opus-5-5`.
 4. Clamp the effort to that entry's `supported_reasoning_levels`: the highest supported level at or below the requested one, or the lowest supported level when none is lower.
 5. A value with no catalog match is a rejected entry. Follow the rejected-entry rule of the skill you are running.
 
 Model families go by the name after the provider prefix. `anthropic/claude-*` is the `claude-*` family, `devin/grok-*` is `grok-*`, and `gpt-*` stays `gpt-*`. Any other name is its own family.
 
-For `/setup-pstack`, detect models from `~/.codex/models_cache.json`, write each value as `<catalog slug>-<effort>`, and write `~/.codex/pstack-models.md` without frontmatter. Then run `python3 {{PSTACK_REPO}}/tools/pstack_opencodex.py check-models` and fix every line it reports.
+For `/setup-pstack`, detect models from the client's configured catalog (or `~/.codex/models_cache.json` when no override is configured), write each value as `<catalog slug>-<effort>`, and write `~/.codex/pstack-models.md` without frontmatter. Then run `python3 {{PSTACK_REPO}}/tools/pstack_opencodex.py check-models --catalog <selected-catalog-path>` and fix every line it reports. Run the delegation preflight before dispatching a worker.
+
+## Delegation preflight
+
+Before choosing a routed child such as Claude or Grok, run the read-only check below with the actual parent model. Pass `--profile` if the client uses a Codex profile, and `--role` to check only the role being dispatched. The checker honors `model_catalog_json` in the selected Codex config instead of assuming the cache is authoritative.
+
+```sh
+python3 {{PSTACK_REPO}}/tools/pstack_opencodex.py check-runtime --parent-model <actual-parent-model>
+```
+
+`check-models` checks names and reasoning efforts and rejects catalog entries marked `disabled`. It does not verify transport, authentication, quotas, or live availability. `check-runtime` reads configuration and catalog metadata without changing settings or contacting providers. Its exit codes are 0 for `CONFIGURATION_OK`, 1 for `BLOCKED`, and 2 for `INCONCLUSIVE`. Even exit 0 is not proof of successful live delegation.
+
+The active session surface defaults to unknown. Specify `--session-surface v1` or `v2` only from observed client/session evidence. A disk setting, catalog pin, or `ocx v2 status` output is not such evidence. Existing Codex sessions can keep an older model catalog after synchronization or configuration changes. Use a fresh session after the documented Codex restart when testing a new transport setting; do not silently restart the user's session.
+
+A native ChatGPT V2 parent can emit backend-encrypted task bodies that routed children cannot read ([opencodex issue #92](https://github.com/lidge-jun/opencodex/issues/92)). A child catalog entry being listed or eligible does not make that transport readable. If the checker blocks this combination, use a verified V1 session or an explicitly configured supported delivery path. Experimental plaintext delivery or task recovery only changes the result to inconclusive until a minimal live delegation confirms the task arrived and was executed. Never enable these settings automatically.
+
+When compatibility is inconclusive, use compatible native workers for independent work if the user's scope permits it, and report any missing cross-family review. Do not represent a substitute from the same family as the required cross-family verdict.
+
+Classify failures before applying pstack's rejected-model fallback rules:
+
+- A rejected or absent model slug follows the skill's model-resolution rules.
+- `unreadable_encrypted_agent_task` is a transport compatibility failure. Stop retrying equivalent routed children in that session; changing effort or `fork_turns` will not decrypt the body. Record the missing result and continue only through a known compatible path.
+- Authentication failures, explicit HTTP 429, and timeouts keep their distinct observed classifications. A timeout alone is not evidence of 429 or an encryption failure. Report provider messages without credentials or task ciphertext.
 
 ## Transcripts
 

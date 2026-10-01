@@ -150,7 +150,12 @@ def load_catalog(path: Path) -> dict[str, list[str]]:
     data = json.loads(path.read_text())
     catalog = {}
     for model in data.get("models", []):
-        levels = [lvl["effort"] if isinstance(lvl, dict) else lvl for lvl in model.get("supported_reasoning_levels") or []]
+        raw_levels = model.get("supported_reasoning_levels") or []
+        if not isinstance(raw_levels, list):
+            raise ValueError("supported_reasoning_levels must be an array")
+        levels = [lvl.get("effort") if isinstance(lvl, dict) else lvl for lvl in raw_levels]
+        if any(not isinstance(lvl, str) for lvl in levels):
+            raise ValueError("reasoning levels must be strings or objects with string efforts")
         catalog[model["slug"]] = [lvl for lvl in levels if lvl in EFFORTS]
     return catalog
 
@@ -224,13 +229,19 @@ def cmd_check_models(args: argparse.Namespace) -> None:
         if not path.exists():
             raise SystemExit(f"{path} does not exist; run $setup-pstack or copy overlay/pstack-models.example.md")
         roles, source = parse_roles(path.read_text()), str(path)
-    print(f"checking {source} against {args.catalog}")
+    print(f"checking names and reasoning efforts in {source} against {args.catalog}")
+    print("This does not verify collaboration transport or live provider availability; run check-runtime before delegation.")
+    records = json.loads(Path(args.catalog).read_text()).get("models", [])
+    disabled = {model["slug"] for model in records if model.get("multi_agent_version") == "disabled"}
     failures = 0
     for label, values in roles.items():
         known = "" if label in defaults else "  [not an upstream role line]"
         failures += bool(known)
         for value in values:
             detail, status = resolve(value, catalog)
+            slug = match_slug(split_effort(value)[0], catalog)
+            if slug in disabled:
+                detail, status = f"{slug} is disabled for collaboration in the catalog", "disabled"
             failures += status != "ok"
             print(f"{'OK ' if status == 'ok' else 'ERR'} {label}: {value} -> {detail}{known}")
     for label in defaults:
@@ -238,6 +249,61 @@ def cmd_check_models(args: argparse.Namespace) -> None:
             print(f"--  {label}: no line, the skill default applies")
     if failures:
         raise SystemExit(f"{failures} problem(s) found")
+
+
+def cmd_check_runtime(args: argparse.Namespace) -> None:
+    from pstack_runtime import catalog_records, configured_catalog, diagnose, read_object, select_profile
+
+    try:
+        codex_path = Path(args.codex_config).expanduser()
+        opencodex_path = Path(args.opencodex_config).expanduser()
+        codex_config = select_profile(read_object(codex_path, toml=True), args.profile)
+        opencodex_config = read_object(opencodex_path)
+        catalog_path = configured_catalog(codex_config, codex_path.parent, args.catalog)
+        records = catalog_records(catalog_path)
+        catalog = load_catalog(catalog_path)
+        parent = match_slug(split_effort(args.parent_model)[0], catalog)
+        if parent is None:
+            raise ValueError("parent model is not in the selected catalog")
+        known_roles = upstream_roles()
+        roles = known_roles if args.defaults else parse_roles(Path(args.file).expanduser().read_text())
+        if not roles:
+            raise ValueError("no model roles found")
+        if args.role:
+            if any(role not in roles for role in args.role):
+                raise ValueError("selected role is not in the model settings")
+            roles = {role: roles[role] for role in args.role}
+        children = {}
+        for role, values in roles.items():
+            if role not in known_roles:
+                raise ValueError(f"unknown pstack role: {role}")
+            for value in values:
+                slug = parent if value in ALIASES else match_slug(split_effort(value)[0], catalog)
+                if slug is None:
+                    raise ValueError(f"model for role {role} is not in the selected catalog")
+                children.setdefault(slug, []).append(role)
+        report = diagnose(parent, children, records, codex_config, opencodex_config, args.session_surface)
+        report["paths"] = {"catalog": str(catalog_path), "codex_config": str(codex_path), "opencodex_config": str(opencodex_path)}
+        for path in (codex_path, opencodex_path):
+            if not path.exists():
+                report["issues"].append({"level": "warning", "code": "config_missing", "message": f"Configuration file is missing: {path}"})
+                if report["status"] == "CONFIGURATION_OK":
+                    report["status"] = "INCONCLUSIVE"
+    except (OSError, ValueError) as error:
+        report = {"status": "BLOCKED", "live_delegation_verified": False, "issues": [{"level": "error", "code": "invalid_input", "message": str(error)}]}
+    if args.json:
+        print(json.dumps(report, indent=2))
+    else:
+        print(f"runtime: {report['status']} (live delegation is not verified)")
+        if "parent" in report:
+            print(f"session surface: {report['session_surface']}; parent: {report['parent']['model']} ({report['parent']['route']})")
+            print(f"catalog: {report['paths']['catalog']}")
+            for child in report["children"]:
+                print(f"child: {child['model']} ({child['route']}, catalog surface={child['catalog_surface']})")
+        for item in report["issues"]:
+            print(f"{item['level'].upper()} {item['code']}: {item['message']}")
+    if report["status"] != "CONFIGURATION_OK":
+        raise SystemExit(1 if report["status"] == "BLOCKED" else 2)
 
 
 def cmd_install(args: argparse.Namespace) -> None:
@@ -285,6 +351,18 @@ def main() -> None:
     check.add_argument("--catalog", default=str(DEFAULT_CATALOG))
     check.add_argument("--defaults", action="store_true", help="check upstream's default role table instead")
     check.set_defaults(func=cmd_check_models)
+    runtime = sub.add_parser("check-runtime", help="read-only delegation preflight; existing-session uncertainty returns exit 2")
+    runtime.add_argument("--parent-model", required=True)
+    runtime.add_argument("--session-surface", choices=("unknown", "v1", "v2"), default="unknown", help="observed live session surface, never inferred from disk configuration")
+    runtime.add_argument("--file", default=str(DEFAULT_MODELS_FILE))
+    runtime.add_argument("--role", action="append", help="check only this role; repeat to select more roles")
+    runtime.add_argument("--catalog", help="catalog override; otherwise honor Codex model_catalog_json")
+    runtime.add_argument("--codex-config", default=str(CODEX_HOME / "config.toml"))
+    runtime.add_argument("--profile", help="Codex profile used by the client, if any")
+    runtime.add_argument("--opencodex-config", default=str(Path(os.environ.get("OPENCODEX_HOME", Path.home() / ".opencodex")) / "config.json"))
+    runtime.add_argument("--defaults", action="store_true")
+    runtime.add_argument("--json", action="store_true")
+    runtime.set_defaults(func=cmd_check_runtime)
     install = sub.add_parser("install", help="symlink dist/skills/* into a skills folder")
     install.add_argument("--target", required=True)
     install.set_defaults(func=cmd_install)
