@@ -24,7 +24,7 @@ pstack was written for Cursor. This file maps its tools, paths, and model names 
 
 ## Models
 
-The settings file is `~/.codex/pstack-models.md`. It holds the same role lines as Cursor's `pstack-models.mdc` rule, without frontmatter. Wherever pstack names `~/.cursor/rules/pstack-models.mdc` or "the `pstack-models.mdc` rule", read this file. Leave `~/.cursor/rules/` alone, because Cursor on this machine owns it.
+The settings file is `~/.codex/pstack-models.md`. It holds the same role lines as Cursor's `pstack-models.mdc` rule, without frontmatter. Wherever pstack names `~/.cursor/rules/pstack-models.mdc` or "the `pstack-models.mdc` rule", read this file. Leave `~/.cursor/rules/` for Cursor's own configuration.
 
 Resolve every model value, from the settings file or from a pstack default, in this order:
 

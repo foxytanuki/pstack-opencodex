@@ -107,6 +107,8 @@ def cmd_build(args: argparse.Namespace) -> None:
     dist.mkdir(parents=True)
     shutil.copytree(UPSTREAM_DIR / "skills", dist / "skills")
     shutil.copytree(UPSTREAM_DIR / "agents", dist / "agents")
+    shutil.copy2(REPO / "LICENSE", dist / "LICENSE")
+    shutil.copy2(UPSTREAM_DIR / "LICENSE", dist / "LICENSE.pstack")
 
     excluded = [line.strip() for line in (OVERLAY_DIR / "exclude").read_text().splitlines()
                 if line.strip() and not line.startswith("#")]

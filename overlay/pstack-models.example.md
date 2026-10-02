@@ -1,6 +1,7 @@
 # pstack model configuration for Codex through opencodex. One line per role. Delete a line to fall back to the skill default.
 # Values are <Codex catalog slug>-<effort>. `inherit-parent` or `auto` runs the role on the parent chat model.
-# Upstream uses grok-4.7-xhigh-fast for code roles. Grok is not in this Codex catalog, so gpt-6.1-sol takes those roles.
+# Illustrative provider aliases; availability depends on your catalog and routing configuration.
+# Replace these values with your available models, or use $setup-pstack to generate settings.
 # budget: unlimited (max)
 feature, refactoring: gpt-6.1-sol-xhigh
 bug-fix: gpt-6.1-sol-xhigh
