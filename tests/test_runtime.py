@@ -91,7 +91,8 @@ class RuntimeCLI(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="pstack-runtime-test-")
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        # Resolve symlinked temp roots (macOS /var -> /private/var) so path comparisons match the CLI.
+        self.root = Path(self.temporary.name).resolve()
         self.catalog = self.root / "selected.json"
         self.roles = self.root / "models.md"
         self.codex = self.root / "config.toml"
