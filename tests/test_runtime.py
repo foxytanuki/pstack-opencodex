@@ -91,7 +91,8 @@ class RuntimeCLI(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="pstack-runtime-test-")
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        # Resolve symlinked temp roots (macOS /var -> /private/var) so path comparisons match the CLI.
+        self.root = Path(self.temporary.name).resolve()
         self.catalog = self.root / "selected.json"
         self.roles = self.root / "models.md"
         self.codex = self.root / "config.toml"
@@ -196,6 +197,66 @@ class RuntimeCLI(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("catalog path must be absolute", result.stdout)
 
+
+class CheckModelsCLI(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="pstack-models-test-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name).resolve()
+        self.catalog = self.root / "catalog.json"
+        self.roles = self.root / "models.md"
+        self.roles.write_text("how explainer: anthropic/claude-opus-5-5-xhigh\n")
+
+    def run_models(self):
+        return subprocess.run([sys.executable, str(ROOT / "tools/pstack_opencodex.py"), "check-models", "--file", str(self.roles), "--catalog", str(self.catalog)], text=True, capture_output=True, timeout=10)
+
+    def test_unreadable_catalogs_fail_with_a_message_instead_of_a_traceback(self):
+        bad_effort = models()
+        bad_effort["gpt-6.1-sol"]["supported_reasoning_levels"] = [{}]
+        cases = {
+            "missing file": None,
+            "malformed JSON": "not-json",
+            "non-object document": "[]",
+            "non-array models": '{"models": {}}',
+            "non-object entry": '{"models": [null]}',
+            "missing slug": '{"models": [{}]}',
+            "non-string slug": '{"models": [{"slug": 7}]}',
+            "malformed effort": json.dumps({"models": list(bad_effort.values())}),
+        }
+        for name, contents in cases.items():
+            with self.subTest(name):
+                if contents is None:
+                    self.catalog.unlink(missing_ok=True)
+                else:
+                    self.catalog.write_text(contents)
+                before = self.catalog.read_bytes() if self.catalog.exists() else None
+                result = self.run_models()
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertTrue(result.stderr.startswith("cannot read model catalog " + str(self.catalog)), result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertNotIn("checking names", result.stdout)
+                after = self.catalog.read_bytes() if self.catalog.exists() else None
+                self.assertEqual(before, after)
+
+    def test_every_duplicate_slug_entry_is_still_checked(self):
+        disabled_first = [{"slug": "demo", "multi_agent_version": "disabled"}, {"slug": "demo", "multi_agent_version": "v1"}]
+        self.roles.write_text("how explainer: demo\n")
+        self.catalog.write_text(json.dumps({"models": disabled_first}))
+        result = self.run_models()
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("disabled for collaboration", result.stdout)
+        bad_first = [{"slug": "demo", "supported_reasoning_levels": [{}]}, {"slug": "demo", "supported_reasoning_levels": [{"effort": "high"}]}]
+        self.catalog.write_text(json.dumps({"models": bad_first}))
+        result = self.run_models()
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertTrue(result.stderr.startswith("cannot read model catalog"), result.stderr)
+
+    def test_a_valid_catalog_still_resolves_and_clamps(self):
+        self.catalog.write_text(json.dumps({"models": list(models().values())}))
+        result = self.run_models()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("anthropic/claude-opus-5-5", result.stdout)
+        self.assertIn("clamped from xhigh", result.stdout)
 
 if __name__ == "__main__":
     unittest.main()

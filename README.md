@@ -89,7 +89,7 @@ The harness maps Cursor cloud-agent steps to local workers. Available tools and 
 
 | Path | Purpose |
 | --- | --- |
-| `UPSTREAM` | Source repository, subtree, and pinned commit. |
+| `UPSTREAM.lock` | Source repository, subtree, and pinned commit. |
 | `upstream/` | Unmodified copy of `cursor/plugins/pstack`. |
 | `overlay/` | Harness instructions, patches, exclusions, and model example. |
 | `tools/` | Build, install, synchronization, and diagnostic tools. |
