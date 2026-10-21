@@ -107,6 +107,9 @@ def cmd_build(args: argparse.Namespace) -> None:
     dist.mkdir(parents=True)
     shutil.copytree(UPSTREAM_DIR / "skills", dist / "skills")
     shutil.copytree(UPSTREAM_DIR / "agents", dist / "agents")
+    # poteto-help and the guide link ../../README.md and docs/; keep those links resolvable.
+    shutil.copy2(UPSTREAM_DIR / "README.md", dist / "README.md")
+    shutil.copytree(UPSTREAM_DIR / "docs", dist / "docs")
     shutil.copy2(REPO / "LICENSE", dist / "LICENSE")
     shutil.copy2(UPSTREAM_DIR / "LICENSE", dist / "LICENSE.pstack")
 

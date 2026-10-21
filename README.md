@@ -14,7 +14,7 @@ This is an independent community adaptation. It is not an official Cursor, OpenA
 - Python 3.11 or later; the Python tools use only the standard library.
 - Git and `patch` on your `PATH`.
 - Codex configured through opencodex, with an available model catalog.
-- Additional tools required by the workflow you choose: GitHub CLI (`gh`) for GitHub operations, Bun for pstack's TypeScript scripts, and Graphite (`gt`) for Orchestrate. Orchestrate also requires `gt auth` and `gt init`.
+- Additional tools required by the workflow you choose: GitHub CLI (`gh`) for GitHub operations and Bun for pstack's TypeScript scripts, including Orchestrate's `orch`. When the Origin CLI (`origin`) is installed and can resolve the repository, pstack uses it instead of `gh`. Graphite (`gt`) is no longer required.
 
 ## Quick start
 
@@ -79,7 +79,9 @@ A native ChatGPT V2 parent can produce encrypted tasks that routed children cann
 - Adds a pointer to `dist/HARNESS.md` at the start of each skill, except `principle-*` skills.
 - Adds Codex's `allow_implicit_invocation: false` policy for upstream skills marked `disable-model-invocation: true`.
 - Normalizes skill names to directory names such as `poteto-mode`.
+- Copies upstream's `README.md` and `docs/` into `dist/` unmodified, so links from `poteto-help` and the guide resolve. `docs/harness/claude-code.md` there is upstream's Claude Code adapter; `dist/HARNESS.md` replaces it for Codex. Upstream's `plugin.json` and `.cursor-plugin/` manifests are not copied.
 - Applies the patches in `overlay/patches/`, stopping if a patch no longer applies.
+- Rewrites `poteto-help` for Codex: install steps that keep an existing skills folder, `$skill` invocation, no Custom Modes, `~/.codex/pstack-models.md`, and no `make-bot-ui`.
 - Excludes `make-bot-ui`, which depends on Cursor automations and Grok Bots.
 - Includes both this project's and upstream pstack's MIT license notices in `dist/`.
 
@@ -93,7 +95,7 @@ The harness maps Cursor cloud-agent steps to local workers. Available tools and 
 | `upstream/` | Unmodified copy of `cursor/plugins/pstack`. |
 | `overlay/` | Harness instructions, patches, exclusions, and model example. |
 | `tools/` | Build, install, synchronization, and diagnostic tools. |
-| `tests/` | Runtime diagnostic tests using temporary configurations and catalogs. |
+| `tests/` | Build, patch, and runtime diagnostic tests using temporary directories, configurations, and catalogs. |
 | `dist/` | Generated skills, harness, build metadata, and license notices; ignored by Git. |
 
 ## Update upstream
@@ -125,7 +127,7 @@ python3 -m unittest discover -s tests -v
 python3 tools/pstack_opencodex.py build
 ```
 
-Tests cover V1/V2 compatibility, disabled models, configuration/session mismatches, experimental mitigations, CLI exit codes, and preservation of input settings. They use temporary files and do not contact providers. A passing suite does not establish live delegation compatibility.
+Tests cover the build (shipped skills, exact patch application, `poteto-help` links, the patched worktree audit), upstream default models against a synthetic catalog, V1/V2 compatibility, disabled models, configuration/session mismatches, experimental mitigations, CLI exit codes, and preservation of input settings. They use temporary files, do not install skills, and do not contact providers. A passing suite does not establish live delegation compatibility.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
