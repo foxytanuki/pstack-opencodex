@@ -1,8 +1,8 @@
 --- a/skills/poteto-mode/scripts/worktree-audit.sh
 +++ b/skills/poteto-mode/scripts/worktree-audit.sh
-@@ -22,11 +22,19 @@
- gh pr list --author "@me" --state all --limit 1000 \
- 	--json number,state,headRefName 2>/dev/null > "$prs" || echo "[]" > "$prs"
+@@ -61,11 +61,19 @@
+ fi
+ [ -s "$prs" ] || echo "[]" > "$prs"
  
 -# Transcripts dir: ~/.cursor/projects/<slugified-repo-path>/agent-transcripts.
 +# Transcripts: Cursor keeps them per project under
@@ -18,10 +18,10 @@
 +mtimes() { if stat -c %Y / >/dev/null 2>&1; then xargs stat -c '%Y %n'; else xargs stat -f '%m %N'; fi; }
 +day() { date -d "@$1" '+%Y-%m-%d' 2>/dev/null || date -r "$1" '+%Y-%m-%d'; }
 +
+ echo "# base: $base"
  printf "SIZE\tAGE\tMERGED\tDIRTY\tREMOTE\tPR\tLAST_CHAT\tBUCKET\tWORKTREE\n"
  
- git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt; do
-@@ -63,12 +71,11 @@
+@@ -103,12 +111,11 @@
  	# Most recent chat whose transcript operated in this worktree. Match path
  	# followed by "/" or a quote so glint-482 does not match glint-482-r37.
  	last="-"; last_ts=0
@@ -39,7 +39,7 @@
  	recent=$([ "$last_ts" -gt 0 ] 2>/dev/null && [ $(( (now - last_ts) / 86400 )) -le 4 ] && echo yes || echo no)
  
  	case "$dirty" in wip:*) bucket=hold-wip ;; *)
-@@ -83,4 +90,4 @@
+@@ -123,4 +130,4 @@
  		"$size" "$age" "$merged" "$dirty" "$remote" "$pr" "$last" "$bucket" "$wt"
  done | sort -t$'\t' -k1,1 -rh
  
