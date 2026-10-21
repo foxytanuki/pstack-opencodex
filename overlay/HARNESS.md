@@ -9,16 +9,19 @@ pstack was written for Cursor. This file maps its tools, paths, and model names 
 - Subagent definitions: `{{PSTACK_DIST}}/agents/poteto-agent.md` and `{{PSTACK_DIST}}/agents/comment-sicko.md`.
 - Skill folders: `.agents/skills/` in the repository for project skills such as a generated `verify-<app>`, and `~/.agents/skills/` for user skills.
 - Cursor paths in pstack text map as follows. `.cursor/skills/` is `.agents/skills/`. `~/.cursor/skills/` is `~/.agents/skills/`, and Codex also reads `~/.codex/skills/`. `~/.cursor/plugins/` is `~/.codex/plugins/`. Project rules under `.cursor/rules/` are the repository's `AGENTS.md` files. `~/.cursor/projects/<slug>/agent-transcripts/` is covered under Transcripts. For worktrees under `.cursor/worktrees/`, use `git worktree list`, which finds worktrees wherever they live.
+- This build is not installed as a plugin. Where pstack text searches `~/.cursor/plugins/` for a pstack file, or picks the copy whose `.cursor-plugin/plugin.json` has the highest `version`, read the file under `{{PSTACK_DIST}}` instead.
+- `{{PSTACK_DIST}}/README.md` and `{{PSTACK_DIST}}/docs/` are unmodified copies of upstream's README and docs, so they describe Cursor. `{{PSTACK_DIST}}/docs/harness/claude-code.md` is upstream's Claude Code adapter. It does not apply to Codex; this file takes its place.
 
 ## Subagents
 
 - `Task` means Codex's `spawn_agent`. Use the collaboration tools actually exposed by the session. In the desktop surface, `wait_agent` waits for mailbox updates; read the delivered messages and final answers to collect results. `send_message` sends a message without starting an idle agent, `followup_task` assigns more work and starts an idle agent, and `interrupt_agent` stops its current turn while keeping it available. Interruption is not closure. Use `send_input`, `wait`, or `close_agent` only on hosts that expose those tools; do not invent absent tools.
 - Pass the prompt as `message`, and set `model` and `reasoning_effort` as described under Models. Drop `subagent_type`, `run_in_background`, and any other parameter Codex does not have. Codex subagents already run in the background.
+- Where pstack says to pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of **poteto-mode**, adjust only `reasoning_effort`. Start from the role's value, move the effort the way poteto-mode says, then clamp it as described under Models. Codex has no per-spawn speed choice, so ignore the speed half and never add `-fast`. If the spawn rejects the adjusted effort, spawn with the role's value and say so.
 - When this host only accepts model overrides with a partial or empty fork, use `fork_turns: "none"` for independent tasks and include their context explicitly. This controls history inheritance, not V1/V2 transport or encryption.
 - `readonly: true` means the prompt must say the agent may read files and run commands but must not edit files, commit, or push.
 - `environment: "cloud"` means a local subagent that works in its own git worktree and output directory.
 - `subagent_type: "poteto-agent"` means a subagent whose message starts with "Read {{PSTACK_DIST}}/skills/poteto-mode/SKILL.md in full, including its Principles section, before any work." Then give the task.
-- `subagent_type: "Comment Sicko"` means a read-only subagent whose message starts with "Read {{PSTACK_DIST}}/agents/comment-sicko.md and follow it as your instructions."
+- `subagent_type: "comment-sicko"` means a read-only subagent whose message starts with "Read {{PSTACK_DIST}}/agents/comment-sicko.md and follow it as your instructions."
 - A pstack step that tells you to spawn subagents is the skill instruction that authorizes spawning. A model chosen in the pstack settings file is the user's explicit model choice.
 - Codex can stop a subagent from spawning its own subagents (`agents.max_depth`). When a spawn fails for that reason, do those roles yourself, one after another, and say so in the report.
 
@@ -70,12 +73,25 @@ Codex stores sessions at `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`, subagen
 - `/goal` means Codex's `create_goal` when this session has it. Otherwise keep the objective and its exit condition in the plan file.
 - `/loop` means a timed wait between checks: a shell `sleep` of at most 60 seconds per call, repeated. In the Codex desktop app, a thread heartbeat automation can wake the thread for longer intervals.
 
+## Skill notes
+
+Invoke every skill as `$name`. These skills need more than the mappings above:
+
+- `ketchup`: the user's last message is the last one they typed in this session. `wait_agent` results, subagent messages, and notifications are not their messages. Give each screenshot or video the work produced as a Markdown image or link to its absolute local path, and say in the same line what it shows, since not every Codex client renders media inline. Write diagrams as fenced `mermaid` blocks. For charts, see `/visualize` under Tools pstack does not ship.
+- `poteto-help`: the build rewrites its install, settings, and mode guidance for Codex (overlay patch `0002`). Its links to the README and guide pages open the unmodified upstream copies, which describe Cursor's install, Custom Modes, and settings. For this build, install with `tools/pstack_opencodex.py build` and `install`, invoke skills as `$name`, start each task with `$poteto-mode` because Codex has no Custom Modes, resume a task in a new session through the Session pickup playbook, keep model settings in `~/.codex/pstack-models.md`, and say that `make-bot-ui` is not installed.
+- `create-formal-verification-skill`, `maintain-formal-verification-skill`, and `create-verification-skill`: write a generated project-local skill to the repository's `.agents/skills/<name>/SKILL.md`, with frontmatter whose `name` equals the folder name and a `description`. A session that started before the file existed may not list it, so open it by path or start a new session.
+- `correct`: the agent instruction file is the repository's `AGENTS.md`. Keep the rule table there.
+- `benchmark-checklist`, `principle-explain-the-number`, `in-your-own-words`, and `sharpen` need nothing beyond this file.
+
+## Help and guide pages
+
+`$poteto-help` links to `{{PSTACK_DIST}}/README.md` and `{{PSTACK_DIST}}/docs/guide/`. The build copies them unmodified from upstream, so they describe Cursor's install, Custom Modes, and settings. For this build, install with `tools/pstack_opencodex.py build` and `install`, and run skills as `$name`. Codex has no Custom Modes, so start each task with `$poteto-mode`; a new session does not remember the last one, so resume through the Session pickup playbook. Settings live in `~/.codex/pstack-models.md`, and `make-bot-ui` is not installed.
+
 ## Cursor features Codex does not have
 
 - Cursor cloud agents and the Cursor dashboard. Codex subagents run on this machine and stop when Codex exits. Their state lives in `wait_agent` results, their worktrees, pushed branches, and the program's ledger files. Where pstack describes a Cursor restart, apply the same rule to a Codex restart: treat every subagent as gone and resume from those records. Where pstack offers a local root or a cloud root, follow the local root instructions.
 - Cursor's built-in skills, such as its babysit skill. Codex has none of them, so follow the pstack playbook pstack names.
 - Cursor automations, webhook routines, and Grok Bots. The `make-bot-ui` skill depends on them and is not installed.
-- Graphite. Orchestrate's stack tools (`orch frontier`) run `gt` and read PR numbers through Graphite, which needs `gt auth` and `gt init` in the repository. Before starting Orchestrate, check `command -v gt` and check that `~/.config/graphite/user_config` contains an `authToken` key without printing its value, for example with `rg -q authToken ~/.config/graphite/user_config`. If `gt` is missing or not authenticated, tell the user before any work. The other playbooks use `gh` and never require `gt`.
 
 ## Tools pstack does not ship
 
@@ -85,3 +101,4 @@ Codex stores sessions at `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`, subagen
 - `control-cli`: a tmux session or a PTY command for CLIs and TUIs.
 - Bugbot and Cursor's agentic security review: apply their triage rules to whatever review bots the repository uses. If none comment, skip those steps.
 - MCP discovery in the **why** skill: Cursor's `mcps/` directory means the MCP tools in your own tool list, named `mcp__<server>__<tool>`. `codex mcp list` shows the configured servers.
+- `/visualize`: Cursor's chart tool. Draw a fenced `mermaid` chart instead, such as `xychart-beta` for numbers, or give the numbers in one sentence. Never invent a number.
