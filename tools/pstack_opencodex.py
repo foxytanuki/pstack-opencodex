@@ -83,10 +83,15 @@ def split_frontmatter(text: str) -> tuple[list[str], str]:
     return text[4:end].splitlines(), text[end + 5 :]
 
 
+def read_codex_skill(path: Path) -> str:
+    """Apply the Codex Sol pin while preserving the effort in the vendored skill."""
+    return re.sub(r"\bgpt-5\.6-sol\b", "gpt-6.2-sol", path.read_text())
+
+
 def adapt_skill(skill_dir: Path, dist: Path) -> bool:
     """Normalize the name, map disable-model-invocation, add the harness pointer."""
     skill_md = skill_dir / "SKILL.md"
-    front, body = split_frontmatter(skill_md.read_text())
+    front, body = split_frontmatter(read_codex_skill(skill_md))
     explicit_only = any(line.strip() == "disable-model-invocation: true" for line in front)
     front = [f"name: {skill_dir.name}" if line.startswith("name:") else line for line in front]
     pointer = "" if skill_dir.name.startswith("principle-") else POINTER.format(dist=dist)
@@ -213,8 +218,8 @@ def parse_roles(text: str) -> dict[str, list[str]]:
     return roles
 
 
-def upstream_roles() -> dict[str, list[str]]:
-    text = (UPSTREAM_DIR / "skills" / "setup-pstack" / "SKILL.md").read_text()
+def default_roles() -> dict[str, list[str]]:
+    text = read_codex_skill(UPSTREAM_DIR / "skills" / "setup-pstack" / "SKILL.md")
     block = re.search(r"### 5\..*?" + FENCE + r"\n(.*?)" + FENCE, text, re.S)
     if not block:
         raise SystemExit("could not find the role template in upstream setup-pstack; review check-models")
@@ -223,9 +228,9 @@ def upstream_roles() -> dict[str, list[str]]:
 
 def cmd_check_models(args: argparse.Namespace) -> None:
     catalog = load_catalog(Path(args.catalog))
-    defaults = upstream_roles()
+    defaults = default_roles()
     if args.defaults:
-        roles, source = defaults, "upstream defaults"
+        roles, source = defaults, "Codex skill defaults"
     else:
         path = Path(args.file).expanduser()
         if not path.exists():
@@ -267,7 +272,7 @@ def cmd_check_runtime(args: argparse.Namespace) -> None:
         parent = match_slug(split_effort(args.parent_model)[0], catalog)
         if parent is None:
             raise ValueError("parent model is not in the selected catalog")
-        known_roles = upstream_roles()
+        known_roles = default_roles()
         roles = known_roles if args.defaults else parse_roles(Path(args.file).expanduser().read_text())
         if not roles:
             raise ValueError("no model roles found")
@@ -351,7 +356,7 @@ def main() -> None:
     check = sub.add_parser("check-models", help="resolve pstack model settings against the Codex catalog")
     check.add_argument("--file", default=str(DEFAULT_MODELS_FILE))
     check.add_argument("--catalog", default=str(DEFAULT_CATALOG))
-    check.add_argument("--defaults", action="store_true", help="check upstream's default role table instead")
+    check.add_argument("--defaults", action="store_true", help="check the Codex skill defaults")
     check.set_defaults(func=cmd_check_models)
     runtime = sub.add_parser("check-runtime", help="read-only delegation preflight; existing-session uncertainty returns exit 2")
     runtime.add_argument("--parent-model", required=True)

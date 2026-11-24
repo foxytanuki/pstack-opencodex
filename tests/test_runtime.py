@@ -9,17 +9,19 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from pstack_runtime import diagnose, model_route
 
+SOL = "gpt-6.2-sol"
+
 
 def models(parent_surface="v1", child_surface="v1"):
     return {
-        "gpt-6.1-sol": {"slug": "gpt-6.1-sol", "use_responses_lite": True, "multi_agent_version": parent_surface, "supported_reasoning_levels": [{"effort": "max"}]},
+        SOL: {"slug": SOL, "use_responses_lite": True, "multi_agent_version": parent_surface, "supported_reasoning_levels": [{"effort": "max"}]},
         "anthropic/claude-opus-5-5": {"slug": "anthropic/claude-opus-5-5", "multi_agent_version": child_surface, "supported_reasoning_levels": [{"effort": "max"}]},
     }
 
 
 class RuntimeRules(unittest.TestCase):
     def report(self, surface, records=None, config=None, codex=None):
-        return diagnose("gpt-6.1-sol", {"anthropic/claude-opus-5-5": ["how explainer"]}, records or models(), codex or {}, config or {"multiAgentMode": "v1"}, surface)
+        return diagnose(SOL, {"anthropic/claude-opus-5-5": ["how explainer"]}, records or models(), codex or {}, config or {"multiAgentMode": "v1"}, surface)
 
     def codes(self, report):
         return {issue["code"] for issue in report["issues"]}
@@ -63,20 +65,20 @@ class RuntimeRules(unittest.TestCase):
 
     def test_routed_parent_does_not_have_native_ciphertext_constraint(self):
         records = models(parent_surface="v2")
-        records["gpt-6.1-sol"]["use_responses_lite"] = False
-        records["gpt-6.1-sol"]["opencodex_catalog_kind"] = "combo-native-alias-v1"
+        records[SOL]["use_responses_lite"] = False
+        records[SOL]["opencodex_catalog_kind"] = "combo-native-alias-v1"
         report = self.report("v2", records)
         self.assertEqual(report["status"], "CONFIGURATION_OK")
 
     def test_unknown_parent_route_is_inconclusive(self):
         records = models(parent_surface="v2")
-        del records["gpt-6.1-sol"]["use_responses_lite"]
+        del records[SOL]["use_responses_lite"]
         report = self.report("v2", records)
         self.assertEqual(report["status"], "INCONCLUSIVE")
         self.assertIn("route_unknown", self.codes(report))
 
     def test_native_forward_metadata_precedes_provider_namespace(self):
-        self.assertEqual(model_route({"slug": "openai-codex/gpt-6.1-sol", "use_responses_lite": True}), "native")
+        self.assertEqual(model_route({"slug": f"openai-codex/{SOL}", "use_responses_lite": True}), "native")
         self.assertEqual(model_route({"slug": "openai-codex/unknown"}), "unknown")
 
     def test_global_override_conflicts_with_hybrid_native_v1(self):
@@ -105,7 +107,23 @@ class RuntimeCLI(unittest.TestCase):
         self.catalog.write_text(json.dumps({"models": list(records.values())}))
 
     def run_cli(self, *extra):
-        return subprocess.run([sys.executable, str(ROOT / "tools/pstack_opencodex.py"), "check-runtime", "--parent-model", "gpt-6.1-sol", "--file", str(self.roles), "--codex-config", str(self.codex), "--opencodex-config", str(self.opencodex), "--json", *extra], text=True, capture_output=True, timeout=10)
+        return subprocess.run([sys.executable, str(ROOT / "tools/pstack_opencodex.py"), "check-runtime", "--parent-model", SOL, "--file", str(self.roles), "--codex-config", str(self.codex), "--opencodex-config", str(self.opencodex), "--json", *extra], text=True, capture_output=True, timeout=10)
+
+    def test_build_and_preflight_use_the_current_sol_default(self):
+        dist = self.root / "dist"
+        subprocess.run(
+            [sys.executable, str(ROOT / "tools/pstack_opencodex.py"), "build", "--out", str(dist)],
+            check=True, capture_output=True, timeout=10,
+        )
+        for skill in ("architect", "arena", "interrogate", "reflect", "setup-pstack"):
+            with self.subTest(skill=skill):
+                text = (dist / "skills" / skill / "SKILL.md").read_text()
+                self.assertIn(f"{SOL}-max", text)
+                self.assertNotIn("gpt-5.6-sol", text)
+
+        result = self.run_cli("--defaults", "--role", "reflect tooling", "--session-surface", "v1")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(json.loads(result.stdout)["children"][0]["model"], SOL)
 
     def test_default_cli_reads_authoritative_catalog_and_leaves_settings_intact(self):
         files = [self.catalog, self.roles, self.codex, self.opencodex]
@@ -157,7 +175,7 @@ class RuntimeCLI(unittest.TestCase):
         result = self.run_cli("--role", "swarm workers", "--session-surface", "v2")
         report = json.loads(result.stdout)
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertEqual([child["model"] for child in report["children"]], ["gpt-6.1-sol"])
+        self.assertEqual([child["model"] for child in report["children"]], [SOL])
 
     def test_unknown_role_or_profile_returns_a_failed_diagnostic(self):
         for option in ("--role", "--profile"):
@@ -171,11 +189,11 @@ class RuntimeCLI(unittest.TestCase):
         self.write_catalog(models(parent_surface="v2"))
         result = self.run_cli("--session-surface", "v2")
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertEqual(json.loads(result.stdout)["children"][0]["model"], "gpt-6.1-sol")
+        self.assertEqual(json.loads(result.stdout)["children"][0]["model"], SOL)
 
     def test_bad_input_fails_with_json_instead_of_traceback(self):
         bad_efforts = models()
-        bad_efforts["gpt-6.1-sol"]["supported_reasoning_levels"] = [{}]
+        bad_efforts[SOL]["supported_reasoning_levels"] = [{}]
         for contents in ("not-json", "[]", '{"models": [null]}', json.dumps({"models": list(bad_efforts.values())})):
             with self.subTest(contents=contents):
                 self.catalog.write_text(contents)

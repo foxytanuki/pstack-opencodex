@@ -38,9 +38,9 @@ For all projects, install into your user skill directory instead:
 python3 tools/pstack_opencodex.py install --target ~/.agents/skills
 ```
 
-The installer creates symlinks into `dist/skills/`. Keep this checkout in place and rebuild after moving it; generated harness instructions contain absolute paths. Existing real skill directories are protected, but existing symlinks with matching names are replaced.
+The installer creates symlinks into `dist/skills/`. Keep this checkout in place because the links and generated harness instructions use absolute paths. After pulling updates, rerun `python3 tools/pstack_opencodex.py build` in the same checkout. The existing links pick up the rebuilt skills. The installer protects existing real skill directories and replaces existing symlinks with matching names.
 
-Start a new Codex session, invoke `$setup-pstack` to choose models available in your catalog, then use `$poteto-mode` for a task. Model settings live in `~/.codex/pstack-models.md`, separately from Cursor's rules. If you use a custom `CODEX_HOME`, pass the corresponding settings and config paths explicitly when needed; the harness documents the default locations.
+Start a new Codex session, invoke `$setup-pstack` to choose models available in your catalog, then use `$poteto-mode` for a task. Model settings live in `~/.codex/pstack-models.md`, separately from Cursor's rules. Explicit role settings in that file take precedence over rebuilt skill defaults. Update the model ID on any line where you want the newer version. If you use a custom `CODEX_HOME`, pass the corresponding settings and config paths explicitly when needed. The harness documents the default locations.
 
 [overlay/pstack-models.example.md](overlay/pstack-models.example.md) shows the role format. Its model names are illustrative provider aliases, not a guarantee of availability. Adapt them to your catalog before copying the file. Panel roles that require different model families need suitable models from those families.
 

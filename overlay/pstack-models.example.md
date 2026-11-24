@@ -3,20 +3,20 @@
 # Illustrative provider aliases; availability depends on your catalog and routing configuration.
 # Replace these values with your available models, or use $setup-pstack to generate settings.
 # budget: unlimited (max)
-feature, refactoring: gpt-6.1-sol-xhigh
-bug-fix: gpt-6.1-sol-xhigh
-perf-issue: gpt-6.1-sol-xhigh
-hillclimb: gpt-6.1-sol-xhigh
+feature, refactoring: gpt-6.2-sol-xhigh
+bug-fix: gpt-6.2-sol-xhigh
+perf-issue: gpt-6.2-sol-xhigh
+hillclimb: gpt-6.2-sol-xhigh
 judgment and prose: anthropic/claude-opus-5-5-max
 hardest tasks: anthropic/claude-opus-5-5-max
-how explorer: gpt-6.1-sol-xhigh
+how explorer: gpt-6.2-sol-xhigh
 how explainer: anthropic/claude-opus-5-5-max
-why investigators: gpt-6.1-sol-xhigh
+why investigators: gpt-6.2-sol-xhigh
 why synthesizer: anthropic/claude-opus-5-5-max
-reflect tooling: gpt-6.1-sol-max
+reflect tooling: gpt-6.2-sol-max
 reflect judgment, divergent, synthesizer: anthropic/claude-opus-5-5-max
-arena runners: anthropic/claude-opus-5-5-max, gpt-6.1-sol-max, anthropic/claude-fable-5-1-max
-arena cross-judge pool: anthropic/claude-opus-5-5-max, gpt-6.1-sol-max, anthropic/claude-fable-5-1-max
-swarm workers: gpt-6.1-sol-xhigh
-architect runners: anthropic/claude-opus-5-5-max, gpt-6.1-sol-max, anthropic/claude-fable-5-1-max
-interrogate reviewers: anthropic/claude-opus-5-5-max, gpt-6.1-sol-max, anthropic/claude-fable-5-1-max
+arena runners: anthropic/claude-opus-5-5-max, gpt-6.2-sol-max, anthropic/claude-fable-5-2-max
+arena cross-judge pool: anthropic/claude-opus-5-5-max, gpt-6.2-sol-max, anthropic/claude-fable-5-2-max
+swarm workers: gpt-6.2-sol-xhigh
+architect runners: anthropic/claude-opus-5-5-max, gpt-6.2-sol-max, anthropic/claude-fable-5-2-max
+interrogate reviewers: anthropic/claude-opus-5-5-max, gpt-6.2-sol-max, anthropic/claude-fable-5-2-max
