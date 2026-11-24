@@ -4,7 +4,7 @@ Issues and pull requests are welcome. Include the command or workflow you used, 
 
 ## Make a change
 
-- Keep `upstream/` identical to the source pinned in `UPSTREAM`. Use the sync command to update it.
+- Keep `upstream/` identical to the source pinned in `UPSTREAM.lock`. Use the sync command to update it.
 - Put harness instructions and patches in `overlay/`, and Python tooling in `tools/`.
 - Keep `dist/` out of Git. It is generated and contains local absolute paths.
 - Use English for project documentation and Conventional Commits for commit messages.

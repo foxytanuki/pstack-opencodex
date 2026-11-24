@@ -30,3 +30,24 @@ jobs:
         run: |
           git diff --check
           git diff --exit-code -- upstream/
+  verify-macos:
+    # Case-insensitive filesystem: catches tracked paths that differ only by case.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Check the checkout is complete
+        run: test -z "$(git status --porcelain)"
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Test runtime diagnostics
+        run: python3 -m unittest discover -s tests -v
+      - name: Build skills and verify license notices
+        run: |
+          python3 tools/pstack_opencodex.py build
+          cmp LICENSE dist/LICENSE
+          cmp upstream/LICENSE dist/LICENSE.pstack
+      - name: Check whitespace and upstream preservation
+        run: |
+          git diff --check
+          git diff --exit-code -- upstream/
